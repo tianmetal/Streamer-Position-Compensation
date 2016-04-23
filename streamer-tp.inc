@@ -6,9 +6,8 @@
 	#define TP_WAIT_TIME 1000
 #endif
 
-static
-	Float:TP_AwaitingPos[MAX_PLAYERS][3],
-	TP_AwaitingTime[MAX_PLAYERS];
+static TP_AwaitingTime[MAX_PLAYERS];
+static Float:TP_AwaitingPos[MAX_PLAYERS][3];
 
 static Float:TP_GetDistanceFromAwaiting(playerid)
 {
@@ -42,11 +41,11 @@ public OnPlayerConnect(playerid)
 
 public OnPlayerUpdate(playerid)
 {
-	if (TP_AwaitingPos[playerid][0] != -1.0) {
-		//SendClientMessage(playerid, -1, "Awaiting");
-		if ((TP_AwaitingTime[playerid] && TP_AwaitingTime[playerid] > NetStats_GetConnectedTime(playerid)) || TP_GetDistanceFromAwaiting(playerid) < 0.2) {
-			//SendClientMessage(playerid, -1, "Less Than");
-			TogglePlayerControllable(playerid, true);
+	if (TP_AwaitingTime[playerid] != 0)
+	{
+		if ((NetStats_GetConnectedTime(playerid) > TP_AwaitingTime[playerid]) || (TP_GetDistanceFromAwaiting(playerid) < 0.2))
+		{
+			TogglePlayerControllable(playerid, 1);
 			Streamer_ToggleItemUpdate(playerid, STREAMER_TYPE_OBJECT, true);
 			
 			TP_AwaitingPos[playerid][0] = -1.0;
@@ -73,20 +72,25 @@ public OnPlayerUpdate(playerid)
     forward TP_OnPlayerUpdate(playerid);
 #endif
 
-stock SetPlayerCompensatedPos(playerid, Float:X, Float:Y, Float:Z, wait_time = TP_WAIT_TIME, worldid = -1, interior = -1)
+stock IsPlayerTeleporting(playerid)
 {
-	if (!IsPlayerConnected(playerid))
-		return 0;
+	return (TP_AwaitingTime[playerid] != 0);
+}
+
+stock SetPlayerCompensatedPos(playerid, Float:X, Float:Y, Float:Z, wait_time = TP_WAIT_TIME, world = -1, interior = -1)
+{
+	if (!IsPlayerConnected(playerid)) return 0;
 	
 	TP_AwaitingPos[playerid][0] = X;
 	TP_AwaitingPos[playerid][1] = Y;
 	TP_AwaitingPos[playerid][2] = Z;
 	
-	TP_AwaitingTime[playerid] = wait_time ? (NetStats_GetConnectedTime(playerid) + wait_time) : 0;
+	TP_AwaitingTime[playerid] = ((wait_time > 0) ? (NetStats_GetConnectedTime(playerid) + wait_time) : NetStats_GetConnectedTime(playerid));
 	
-	TogglePlayerControllable(playerid, false);
-	Streamer_UpdateEx(playerid, X, Y, Z, worldid, interior, STREAMER_TYPE_OBJECT);
+	TogglePlayerControllable(playerid, 0);
+	Streamer_UpdateEx(playerid, X, Y, Z, world, interior, STREAMER_TYPE_OBJECT);
 	Streamer_ToggleItemUpdate(playerid, STREAMER_TYPE_OBJECT, false);
-	
+	if(interior != -1) SetPlayerInterior(playerid,interior);
+	if(world != -1) SetPlayerVirtualWorld(playerid,world);
 	return SetPlayerPos(playerid, X, Y, Z - 0.3);
 }
